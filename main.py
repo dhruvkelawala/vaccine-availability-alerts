@@ -59,6 +59,7 @@ class API:
             # request cowin portal API for available sessions
             res = requests.get(
                 "https://cdn-api.co-vin.in/api/v2/appointment/sessions/public/findByPin?pincode={}&date={}".format(pincode, date))
+            print(res)
             return json.loads(res.text).get("sessions") if res.ok else []
         except Exception as e:
             print(e)
@@ -91,6 +92,7 @@ class API:
 
 # Event Loop
 while True:
+    count = 0
     for pincode in API.PINCODES:
         # check for next 7 days
         for date in API.DATES(7):
@@ -113,6 +115,7 @@ while True:
                 except Exception as e:
                     print(e)
             else:
+                count = count + 1
                 print('No Slot found')
 
     # print("No Slots found")
@@ -126,6 +129,7 @@ while True:
         API.TIME_ELAPSED = 0
     else:
         print(API.TIME_ELAPSED)
+    print(count)
     time.sleep(API.INTERVAL)
 
 """
