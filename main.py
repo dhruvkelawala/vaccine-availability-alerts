@@ -51,6 +51,7 @@ class API:
     def DATES(r): return [(base + datetime.timedelta(days=d)
                            ).strftime("%d-%m-%Y") for d in range(0, r)]
     INTERVAL = int(os.environ.get("INTERVAL"))
+    TIME_ELAPSED = int(0)
 
     @staticmethod
     def get_sessions(pincode, date):
@@ -98,6 +99,9 @@ while True:
             # fetch data from cowin portal
             sessions = API.get_sessions(pincode, date)
 
+            # if(len(sessions) != 0):
+            #     print('No Slot found')
+
             # parse session details
             for s in sessions:
                 try:
@@ -106,13 +110,22 @@ while True:
                         print(message)
                         # send message to telegram
                         API.push(message)
-                    else:
-                        print("No Slots found")
-                        API.push("No Slots found")
                 except Exception as e:
                     print(e)
+            else:
+                print('No Slot found')
+
+    # print("No Slots found")
+    # API.push("No Slots found")
     print("[{}][INFO] sleeping for {} seconds".format(
         datetime.datetime.now(), API.INTERVAL))
+
+    API.TIME_ELAPSED = API.TIME_ELAPSED + (round((API.INTERVAL/60)))
+    if(API.TIME_ELAPSED == 59):
+        API.push("No Slots found")
+        API.TIME_ELAPSED = 0
+    else:
+        print(API.TIME_ELAPSED)
     time.sleep(API.INTERVAL)
 
 """
