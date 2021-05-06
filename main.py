@@ -55,11 +55,13 @@ class API:
 
     @staticmethod
     def get_sessions(pincode, date):
+        headers = {'Content-Type': 'application/json',
+                   'Accept-Language': 'hi_IN', 'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_10_1) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/39.0.2171.95 Safari/537.36'}
         try:
             # request cowin portal API for available sessions
             res = requests.get(
-                "https://cdn-api.co-vin.in/api/v2/appointment/sessions/public/findByPin?pincode={}&date={}".format(pincode, date))
-            print(res)
+                "https://cdn-api.co-vin.in/api/v2/appointment/sessions/public/findByPin?pincode={}&date={}".format(pincode, date), headers=headers)
+            print(json.loads(res.text).get("sessions"))
             return json.loads(res.text).get("sessions") if res.ok else []
         except Exception as e:
             print(e)
