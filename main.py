@@ -46,7 +46,11 @@ class API:
 
     PINCODES = [p.strip() for p in os.environ.get("PINCODES").split(",")]
     MIN_AGE = int(os.environ.get("MIN_AGE_LIMIT"))
-    TOKEN = os.environ.get("TOKEN")
+    TOKENS = [t.strip() for t in os.environ.get("TOKENS").split(",")]
+    DISTRICTS = [d.strip()
+                 for d in os.environ.get("DISTRICT_IDs").split(",")]
+
+    GET_BY = os.environ.get("GET_BY")
 
     def DATES(r): return [(base + datetime.timedelta(days=d)
                            ).strftime("%d-%m-%Y") for d in range(0, r)]
@@ -54,7 +58,7 @@ class API:
     TIME_ELAPSED = int(0)
 
     @staticmethod
-    def get_sessions(pincode, date):
+    def get_sessions_by_pincode(pincode, date):
         headers = {'Content-Type': 'application/json',
                    'Accept-Language': 'hi_IN', 'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_10_1) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/39.0.2171.95 Safari/537.36'}
         try:
@@ -68,10 +72,25 @@ class API:
             return []
 
     @staticmethod
+    def get_sessions_by_district(district, date):
+        headers = {'Content-Type': 'application/json',
+                   'Accept-Language': 'hi_IN', 'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_10_1) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/39.0.2171.95 Safari/537.36'}
+        try:
+            # request cowin portal API for available sessions
+            res = requests.get(
+                "https://cdn-api.co-vin.in/api/v2/appointment/sessions/public/findByDistrict?district_id={}&date={}".format(district, date), headers=headers)
+            print(json.loads(res.text).get("sessions"))
+            return json.loads(res.text).get("sessions") if res.ok else []
+        except Exception as e:
+            print(e)
+            return []
+
+    @staticmethod
     def push(string):
         # push data to telegram bot
-        requests.get(
-            "https://tgbots.skmobi.com/pushit/{}?msg={}".format(API.TOKEN, string))
+        for token in API.TOKENS:
+            requests.get(
+                "https://tgbots.skmobi.com/pushit/{}?msg={}".format(token, string))
 
     @staticmethod
     def emojify(d):
@@ -95,30 +114,77 @@ class API:
 # Event Loop
 while True:
     count = 0
-    for pincode in API.PINCODES:
-        # check for next 7 days
-        for date in API.DATES(7):
-            print("[{}][INFO] fetching data for date: {}, PINCODE: {}".format(
-                datetime.datetime.now(), date, pincode))
-            # fetch data from cowin portal
-            sessions = API.get_sessions(pincode, date)
+    found = False
 
-            # if(len(sessions) != 0):
-            #     print('No Slot found')
+    if(API.GET_BY == 'pincode'):
 
-            # parse session details
-            for s in sessions:
-                try:
-                    if API.MIN_AGE >= s.get("min_age_limit"):
+        print("-----------Fetching by Pincodes--------")
+
+        for pincode in API.PINCODES:
+            # check for next 7 days
+            for date in API.DATES(5):
+                print("[{}][INFO] fetching data for date: {}, PINCODE: {}".format(
+                    datetime.datetime.now(), date, pincode))
+                # fetch data from cowin portal
+                sessions = API.get_sessions_by_pincode(pincode, date)
+
+                # if(len(sessions) != 0):
+                #     print('No Slot found')
+
+                # parse session details
+                for s in sessions:
+                    if(found == False):
+                        found = True
+
+                    try:
+                        # if API.MIN_AGE >= s.get("min_age_limit"):
                         message = API.emojify(s)
                         print(message)
                         # send message to telegram
                         API.push(message)
-                except Exception as e:
-                    print(e)
+                    except Exception as e:
+                        print(e)
+                else:
+                    count = count + 1
+                    print('No Slot found')
+
+    else:
+
+        print("-----------Fetching by Districts--------")
+
+        for district in API.DISTRICTS:
+            # check for next 7 days
+            district_name = ''
+            if(district == '776'):
+                district_name = "Surat Corporation"
             else:
-                count = count + 1
-                print('No Slot found')
+                district_name = "Surat"
+
+            for date in API.DATES(5):
+                print("[{}][INFO] fetching data for date: {}, DISTRICT: {}".format(
+                    datetime.datetime.now(), date, district_name))
+                # fetch data from cowin portal
+                sessions = API.get_sessions_by_district(district, date)
+
+                # if(len(sessions) != 0):
+                #     print('No Slot found')
+
+                # parse session details
+                for s in sessions:
+                    if(found == False):
+                        found = True
+
+                    try:
+                        # if API.MIN_AGE >= s.get("min_age_limit"):
+                        message = API.emojify(s)
+                        print(message)
+                        # send message to telegram
+                        API.push(message)
+                    except Exception as e:
+                        print(e)
+                else:
+                    count = count + 1
+                    print('No Slot found')
 
     # print("No Slots found")
     # API.push("No Slots found")
@@ -126,7 +192,7 @@ while True:
         datetime.datetime.now(), API.INTERVAL))
 
     API.TIME_ELAPSED = API.TIME_ELAPSED + (round((API.INTERVAL/60)))
-    if(API.TIME_ELAPSED == 59):
+    if(API.TIME_ELAPSED == 59 and found == False):
         API.push("No Slots found")
         API.TIME_ELAPSED = 0
     else:
